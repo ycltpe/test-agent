@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>微调炼金术 — 主流大模型场景优化头脑风暴纪要</title>
+<style>
+  :root {
+    --bg-deep: #070710;
+    --bg-panel: #0f1020;
+    --ink: #e8eaf6;
+    --muted: #9aa0c9;
+    --accent-1: #00f2ff;
+    --accent-2: #7b61ff;
+    --accent-3: #ff2a6d;
+    --accent-4: #39ff14;
+    --accent-5: #ffcc00;
+    --glass: rgba(255,255,255,0.04);
+    --glass-border: rgba(255,255,255,0.10);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg-deep);
+    color: var(--ink);
+    font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+  /* Hero canvas */
+  #hero-canvas {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    opacity: .55;
+    pointer-events: none;
+  }
+  header {
+    min-height: 92vh;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    padding: 2rem;
+    position: relative;
+  }
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    border: 1px solid var(--glass-border);
+    background: var(--glass);
+    padding: .4rem 1rem;
+    border-radius: 999px;
+    font-size: .82rem;
+    color: var(--muted);
+    letter-spacing: .08em;
+    backdrop-filter: blur(6px);
+  }
+  .hero-badge .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent-4);
+    box-shadow: 0 0 12px var(--accent-4);
+    animation: pulse 2s infinite;
+  }
+  h1 {
+    font-size: clamp(2.6rem, 7vw, 5.4rem);
+    margin: 1.2rem 0 .6rem;
+    line-height: 1.05;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, var(--ink) 0%, var(--accent-1) 50%, var(--accent-2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .subtitle {
+    font-size: clamp(1.1rem, 2.4vw, 1.5rem);
+    color: var(--muted);
+    max-width: 760px;
+    margin: 0 auto 2.5rem;
+  }
+  .hero-meta {
+    display: flex;
+    justify-content: center;
+    gap: 2.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+  }
+  .hero-meta .k {
+    font-size: .78rem;
+    text-transform: uppercase;
+    color: var(--muted);
+    letter-spacing: .1em;
+  }
+  .hero-meta .v {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .scroll-hint {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    color: var(--muted);
+    font-size: .85rem;
+    animation: bob 2s ease-in-out infinite;
+  }
+  @keyframes bob { 0%,100%{ transform: translateX(-50%) translateY(0); } 50%{ transform: translateX(-50%) translateY(8px); } }
+  @keyframes pulse { 0%,100%{ opacity: 1; } 50%{ opacity: .4; } }
+
+  main { padding: 0 1.25rem 6rem; max-width: 1200px; margin: 0 auto; }
+
+  .section {
+    margin: 5rem 0;
+    position: relative;
+  }
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .section-number {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: .85rem;
+    padding: .2rem .6rem;
+    border-radius: 4px;
+    border: 1px solid currentColor;
+    color: var(--accent-1);
+  }
+  .section h2 {
+    margin: 0;
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    font-weight: 700;
+  }
+  .section p.lead {
+    color: var(--muted);
+    font-size: 1.05rem;
+    max-width: 720px;
+    margin: 0 0 1.8rem;
+  }
+
+  /* Mind Map radial list */
+  .mind-map {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+  }
+  .mind-node {
+    background: linear-gradient(145deg, rgba(0,242,255,.08), rgba(123,97,255,.06));
+    border: 1px solid rgba(0,242,255,.18);
+    border-radius: 14px;
+    padding: 1.1rem 1.25rem;
+    position: relative;
+    overflow: hidden;
+    transition: transform .25s, box-shadow .25s;
+  }
+  .mind-node::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at var(--mx,50%) var(--my,50%), rgba(0,242,255,.18), transparent 55%);
+    opacity: 0;
+    transition: opacity .25s;
+  }
+  .mind-node:hover { transform: translateY(-4px); box-shadow: 0 18px 40px rgba(0,242,255,.12); }
+  .mind-node:hover::before { opacity: 1; }
+  .mind-node .tag {
+    font-size: .68rem;
+    color: var(--accent-1);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: .4rem;
+  }
+  .mind-node .body { position: relative; z-index: 1; font-size: .95rem; }
+
+  /* What If — scenario orbs */
+  .scenario-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1.25rem;
+  }
+  .scenario-card {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 18px;
+    padding: 1.4rem;
+    position: relative;
+    overflow: hidden;
+    transition: transform .25s;
+  }
+  .scenario-card:hover { transform: scale(1.02); }
+  .scenario-card .orb {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    margin-bottom: 1rem;
+    background: radial-gradient(circle at 30% 30%, var(--accent-2), #2a1d6b);
+    box-shadow: 0 0 24px rgba(123,97,255,.35);
+  }
+  .scenario-card:nth-child(2n) .orb { background: radial-gradient(circle at 30% 30%, var(--accent-3), #5c0f26); box-shadow: 0 0 24px rgba(255,42,109,.35); }
+  .scenario-card:nth-child(3n) .orb { background: radial-gradient(circle at 30% 30%, var(--accent-4), #0f4c16); box-shadow: 0 0 24px rgba(57,255,20,.35); }
+  .scenario-card:nth-child(4n) .orb { background: radial-gradient(circle at 30% 30%, var(--accent-5), #5c4a0a); box-shadow: 0 0 24px rgba(255,204,0,.35); }
+  .scenario-card h4 { margin: 0 0 .5rem; font-size: 1.05rem; }
+  .scenario-card p { margin: 0; color: var(--muted); font-size: .92rem; }
+
+  /* Cross-Pollination — hybrid blooms */
+  .hybrid-list {
+    display: grid;
+    gap: .9rem;
+  }
+  .hybrid-row {
+    display: grid;
+    grid-template-columns: 1.1fr auto 1.1fr auto 1.4fr;
+    align-items: center;
+    gap: .75rem;
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: .9rem 1.1rem;
+  }
+  .hybrid-domain {
+    font-size: .85rem;
+    padding: .35rem .7rem;
+    border-radius: 999px;
+    background: rgba(255,42,109,.12);
+    border: 1px solid rgba(255,42,109,.25);
+    text-align: center;
+  }
+  .hybrid-arrow {
+    color: var(--muted);
+    font-size: 1.1rem;
+  }
+  .hybrid-plus {
+    color: var(--accent-5);
+    font-weight: 800;
+  }
+  .hybrid-child {
+    font-size: .95rem;
+  }
+  @media (max-width: 720px) {
+    .hybrid-row { grid-template-columns: 1fr; text-align: center; }
+    .hybrid-arrow, .hybrid-plus { transform: rotate(90deg); }
+  }
+
+  /* Reverse Brainstorming — flip panels */
+  .reverse-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+  }
+  .reverse-card {
+    background: var(--bg-panel);
+    border: 1px solid rgba(255,42,109,.25);
+    border-radius: 14px;
+    padding: 1.2rem;
+    position: relative;
+    transition: box-shadow .25s;
+  }
+  .reverse-card:hover { box-shadow: 0 12px 30px rgba(255,42,109,.12); }
+  .reverse-card .failure {
+    color: var(--accent-3);
+    font-size: .8rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    margin-bottom: .4rem;
+  }
+  .reverse-card .fix {
+    color: var(--accent-4);
+    font-size: .8rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    margin-top: .9rem;
+    margin-bottom: .4rem;
+  }
+  .reverse-card .arrow-down {
+    text-align: center;
+    color: var(--muted);
+    font-size: 1.2rem;
+    line-height: 1;
+  }
+
+  /* SCAMPER — hex tiles */
+  .scamper-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 1rem;
+  }
+  .scamper-tile {
+    --tile-color: var(--accent-5);
+    background: linear-gradient(160deg, rgba(255,255,255,.04), rgba(255,255,255,.01));
+    border: 1px solid rgba(255,255,255,.12);
+    border-top: 3px solid var(--tile-color);
+    border-radius: 14px;
+    padding: 1.1rem 1.2rem;
+    position: relative;
+  }
+  .scamper-tile::after {
+    content: attr(data-letter);
+    position: absolute;
+    top: .7rem; right: .9rem;
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: var(--tile-color);
+    opacity: .22;
+  }
+  .scamper-tile h4 { margin: 0 0 .5rem; color: var(--tile-color); font-size: 1rem; }
+  .scamper-tile p { margin: 0; color: var(--muted); font-size: .9rem; }
+  .scamper-tile[data-letter="S"] { --tile-color: #00f2ff; }
+  .scamper-tile[data-letter="C"] { --tile-color: #7b61ff; }
+  .scamper-tile[data-letter="A"] { --tile-color: #ff2a6d; }
+  .scamper-tile[data-letter="M"] { --tile-color: #39ff14; }
+  .scamper-tile[data-letter="P"] { --tile-color: #ffcc00; }
+  .scamper-tile[data-letter="E"] { --tile-color: #ff7b00; }
+  .scamper-tile[data-letter="R"] { --tile-color: #d946ef; }
+
+  /* Synthesis climax */
+  .synthesis {
+    background: linear-gradient(135deg, rgba(123,97,255,.10), rgba(0,242,255,.08));
+    border: 1px solid rgba(0,242,255,.25);
+    border-radius: 24px;
+    padding: 2.5rem;
+    margin-top: 6rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .synthesis::before {
+    content: "";
+    position: absolute;
+    inset: -50%;
+    background: conic-gradient(from 0deg, transparent, var(--accent-1), transparent 30%);
+    opacity: .08;
+    animation: spin 18s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .synthesis-inner { position: relative; z-index: 1; }
+  .synthesis h2 {
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    margin: 0 0 1rem;
+    background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .idea-meter {
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+    margin: 1.5rem 0 2rem;
+    flex-wrap: wrap;
+  }
+  .idea-count {
+    font-size: 4rem;
+    font-weight: 900;
+    line-height: 1;
+    color: var(--accent-1);
+    text-shadow: 0 0 30px rgba(0,242,255,.35);
+  }
+  .idea-label {
+    color: var(--muted);
+    font-size: 1rem;
+  }
+  .insight-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1rem;
+    margin: 2rem 0;
+  }
+  .insight-card {
+    background: rgba(0,0,0,.22);
+    border: 1px solid rgba(255,255,255,.10);
+    border-radius: 14px;
+    padding: 1.2rem;
+  }
+  .insight-card .num {
+    font-size: .8rem;
+    color: var(--accent-1);
+    margin-bottom: .4rem;
+  }
+  .insight-card p { margin: 0; font-size: .96rem; }
+  .direction {
+    margin-top: 1.5rem;
+    padding: 1.2rem 1.4rem;
+    border-radius: 14px;
+    background: rgba(57,255,20,.08);
+    border: 1px solid rgba(57,255,20,.25);
+    display: flex;
+    align-items: flex-start;
+    gap: .9rem;
+  }
+  .direction .rocket { font-size: 1.6rem; line-height: 1; }
+  .direction h4 { margin: 0 0 .3rem; color: var(--accent-4); }
+  .direction p { margin: 0; color: var(--muted); font-size: .95rem; }
+
+  footer {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--muted);
+    font-size: .85rem;
+  }
+  .circuit-line {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent-2), transparent);
+    margin: 1rem 0;
+  }
+</style>
+</head>
+<body>
+<canvas id="hero-canvas"></canvas>
+
+<header>
+  <div>
+    <div class="hero-badge"><span class="dot"></span> 头脑风暴已归档 · 2026-07-21</div>
+    <h1>微调炼金术</h1>
+    <p class="subtitle">主流大模型（DeepSeek、Qwen 等）的微调技术与场景优化：从参数高效适配到垂直场景产品化的创意图谱</p>
+    <div class="hero-meta">
+      <div><div class="k">主题</div><div class="v">微调技术与场景优化</div></div>
+      <div><div class="k">目标</div><div class="v">研究方向 × 应用场景 × 产品机会</div></div>
+      <div><div class="k">方法</div><div class="v">5 种创意思考技术</div></div>
+    </div>
+  </div>
+  <div class="scroll-hint">向下滚动，进入创意实验室 ↓</div>
+</header>
+
+<main>
+
+<section class="section" id="mind-mapping">
+  <div class="section-header">
+    <span class="section-number">01</span>
+    <h2>思维导图 · 技术全景</h2>
+  </div>
+  <p class="lead">把微调技术展开成一张活神经网络：参数效率方法、数据工程、对齐目标与场景产品彼此相连，任何节点都可能触发新的研究分支。</p>
+  <div class="mind-map">
+    <div class="mind-node"><div class="tag">Baseline</div><div class="body">全参数微调作为小领域模型的基线</div></div>
+    <div class="mind-node"><div class="tag">PEFT</div><div class="body">LoRA 低成本适配大基座模型</div></div>
+    <div class="mind-node"><div class="tag">PEFT</div><div class="body">QLoRA 在消费级 GPU 上训练 65B+ 模型</div></div>
+    <div class="mind-node"><div class="tag">PEFT</div><div class="body">DoRA 分解权重实现更稳定的低秩更新</div></div>
+    <div class="mind-node"><div class="tag">PEFT</div><div class="body">Prefix Tuning 冻结主干训练软提示</div></div>
+    <div class="mind-node"><div class="tag">PEFT</div><div class="body">Prompt Tuning 任务相关的连续 token</div></div>
+    <div class="mind-node"><div class="tag">PEFT</div><div class="body">Adapter 在 Transformer 块之间插入适配层</div></div>
+    <div class="mind-node"><div class="tag">PEFT</div><div class="body">IA3 缩放激活而非添加适配器</div></div>
+    <div class="mind-node"><div class="tag">PEFT</div><div class="body">BitFit 仅微调偏置项达到极致参数效率</div></div>
+    <div class="mind-node"><div class="tag">训练策略</div><div class="body">分层学习率缓解灾难性遗忘</div></div>
+    <div class="mind-node"><div class="tag">监督</div><div class="body">SFT 在精选指令遵循数据集上微调</div></div>
+    <div class="mind-node"><div class="tag">对齐</div><div class="body">RLHF + PPO 对齐人类偏好</div></div>
+    <div class="mind-node"><div class="tag">对齐</div><div class="body">DPO 无需奖励模型简化偏好优化</div></div>
+    <div class="mind-node"><div class="tag">对齐</div><div class="body">KTO 人类感知的偏好优化</div></div>
+    <div class="mind-node"><div class="tag">对齐</div><div class="body">ORPO 赔率比偏好优化</div></div>
+    <div class="mind-node"><div class="tag">对齐</div><div class="body">SimPO 长度归一化的偏好优化</div></div>
+    <div class="mind-node"><div class="tag">对齐</div><div class="body">RLAIF 用另一 LLM 担任偏好裁判</div></div>
+    <div class="mind-node"><div class="tag">对齐</div><div class="body">Constitutional AI 自我批判与修订循环</div></div>
+    <div class="mind-node"><div class="tag">领域适配</div><div class="body">指令微调前在领域语料上持续预训练</div></div>
+    <div class="mind-node"><div class="tag">训练策略</div><div class="body">课程式微调从简单样本到困难样本</div></div>
+    <div class="mind-node"><div class="tag">分布式</div><div class="body">跨去中心化数据孤岛的联邦微调</div></div>
+    <div class="mind-node"><div class="tag">压缩</div><div class="body">从大教师模型蒸馏到小学生模型</div></div>
+    <div class="mind-node"><div class="tag">数据</div><div class="body">模型生成辩论式自对弈微调</div></div>
+    <div class="mind-node"><div class="tag">数据</div><div class="body">对比微调利用正负样本对</div></div>
+    <div class="mind-node"><div class="tag">架构</div><div class="body">专家混合（MoE）微调处理专门子任务</div></div>
+    <div class="mind-node"><div class="tag">数据格式</div><div class="body">Alpaca / ShareGPT 等指令微调格式</div></div>
+    <div class="mind-node"><div class="tag">数据</div><div class="body">监督微调前构建领域专属语料</div></div>
+    <div class="mind-node"><div class="tag">数据</div><div class="body">用大教师 LLM 生成合成数据</div></div>
+    <div class="mind-node"><div class="tag">数据</div><div class="body">通过复述与回译进行数据增强</div></div>
+    <div class="mind-node"><div class="tag">数据</div><div class="body">LLM 作为标注员进行可扩展偏好对标注</div></div>
+    <div class="mind-node"><div class="tag">数据</div><div class="body">主动学习挑选高价值训练样本</div></div>
+    <div class="mind-node"><div class="tag">数据</div><div class="body">核心集选择在不损失质量下缩减数据</div></div>
+    <div class="mind-node"><div class="tag">数据</div><div class="body">基于多样性的采样提升指令覆盖</div></div>
+    <div class="mind-node"><div class="tag">数据</div><div class="body">基于困惑度的原始训练文本质量过滤</div></div>
+    <div class="mind-node"><div class="tag">数据</div><div class="body">去重与基准污染清理管线</div></div>
+    <div class="mind-node"><div class="tag">隐私</div><div class="body">医疗或法律场景的隐私保护合成数据</div></div>
+    <div class="mind-node"><div class="tag">多语言</div><div class="body">低资源语言的多语言数据平衡</div></div>
+    <div class="mind-node"><div class="tag">推理</div><div class="body">数学与逻辑任务的思维链数据</div></div>
+    <div class="mind-node"><div class="tag">Agent</div><div class="body">函数调用 Agent 的工具使用轨迹数据</div></div>
+    <div class="mind-node"><div class="tag">Agent</div><div class="body">多步任务微调的 Agentic 工作流日志</div></div>
+  </div>
+</section>
+
+<section class="section" id="what-if">
+  <div class="section-header">
+    <span class="section-number">02</span>
+    <h2>What If · 极端情境推演</h2>
+  </div>
+  <p class="lead">把边界条件推到极限，看看微调的形态会如何突变：算力无限、隐私绝对、延迟为零……每个假设都是一扇通往新产品形态的门。</p>
+  <div class="scenario-grid">
+    <div class="scenario-card"><div class="orb"></div><h4>算力无限</h4><p>为每个用户训练一个专属专家模型，个性化成为默认。</p></div>
+    <div class="scenario-card"><div class="orb"></div><h4>数据完全私密</h4><p>联邦微调 + 同态加密，让敏感数据永不出域。</p></div>
+    <div class="scenario-card"><div class="orb"></div><h4>智能手表推理</h4><p>极致量化 + 微型用户专属适配器，腕上也能跑大模型。</p></div>
+    <div class="scenario-card"><div class="orb"></div><h4>单次适应</h4><p>元学习驱动的少样本微调，一个例子就完成领域切换。</p></div>
+    <div class="scenario-card"><div class="orb"></div><h4>没有人工标注</h4><p>合成数据 + RLAIF 的闭环自训练，构建无标签飞轮。</p></div>
+    <div class="scenario-card"><div class="orb"></div><h4>每个用户都是数据集</h4><p>终身个人模型微调，模型随用户一同成长。</p></div>
+    <div class="scenario-card"><div class="orb"></div><h4>幻觉需要负法律责任</h4><p>基于事实来源与法律溯源的训练成为合规刚需。</p></div>
+    <div class="scenario-card"><div class="orb"></div><h4>一分钟训练</h4><p>预计算专家适配器库，按场景即插即用。</p></div>
+    <div class="scenario-card"><div class="orb"></div><h4>按需遗忘</h4><p>机器反学习作为一项合规服务被产品化。</p></div>
+    <div class="scenario-card"><div class="orb"></div><h4>纯离线世界</h4><p>端侧基于使用行为的自改进模型。</p></div>
+    <div class="scenario-card"><div class="orb"></div><h4>反其道而行</h4><p>故意让模型遗忘通用知识，彻底专业化。</p></div>
+    <div class="scenario-card"><div class="orb"></div><h4>问题消失</h4><p>模型天然通晓所有领域，微调退化为“人格选择”。</p></div>
+    <div class="scenario-card"><div class="orb"></div><h4>无限标注数据</h4><p>大规模多领域监督预训练覆盖所有长尾。</p></div>
+    <div class="scenario-card"><div class="orb"></div><h4>零延迟要求</h4><p>在边缘 CDN 缓存适配器，毫秒级切换。</p></div>
+    <div class="scenario-card"><div class="orb"></div><h4>全球统一监管</h4><p>部署前必须通过偏见与安全认证，认证即服务出现。</p></div>
+    <div class="scenario-card"><div class="orb"></div><h4>模型即公共资源</h4><p>开源基座 + 公共适配器池，微调成为基础设施。</p></div>
+  </div>
+</section>
+
+<section class="section" id="cross-pollination">
+  <div class="section-header">
+    <span class="section-number">03</span>
+    <h2>Cross-Pollination · 跨界杂交</h2>
+  </div>
+  <p class="lead">把陌生领域的逻辑嫁接到微调流程上：赌场优化、急诊分诊、蜂群、音乐混音……每一个跨界类比都孕育着新的系统设计。</p>
+  <div class="hybrid-list">
+    <div class="hybrid-row"><div class="hybrid-domain">赌场优化</div><span class="hybrid-plus">+</span><div class="hybrid-domain">对话系统</div><span class="hybrid-arrow">→</span><div class="hybrid-child">把模型调优为“最大化期望对话价值”的决策引擎</div></div>
+    <div class="hybrid-row"><div class="hybrid-domain">急诊分诊</div><span class="hybrid-plus">+</span><div class="hybrid-domain">用户意图</div><span class="hybrid-arrow">→</span><div class="hybrid-child">按紧急程度优先排序与路由用户意图</div></div>
+    <div class="hybrid-row"><div class="hybrid-domain">蜂群逻辑</div><span class="hybrid-plus">+</span><div class="hybrid-domain">适配器</div><span class="hybrid-arrow">→</span><div class="hybrid-child">一群小型专业化适配器协作完成复杂任务</div></div>
+    <div class="hybrid-row"><div class="hybrid-domain">航空会员</div><span class="hybrid-plus">+</span><div class="hybrid-domain">反馈机制</div><span class="hybrid-arrow">→</span><div class="hybrid-child">用更优质的模型访问权限奖励高质量反馈</div></div>
+    <div class="hybrid-row"><div class="hybrid-domain">作物轮作</div><span class="hybrid-plus">+</span><div class="hybrid-domain">训练域</div><span class="hybrid-arrow">→</span><div class="hybrid-child">轮换训练领域以保持泛化能力</div></div>
+    <div class="hybrid-row"><div class="hybrid-domain">游戏任务</div><span class="hybrid-plus">+</span><div class="hybrid-domain">训练数据</div><span class="hybrid-arrow">→</span><div class="hybrid-child">把训练任务生成关卡化的程序任务</div></div>
+    <div class="hybrid-row"><div class="hybrid-domain">菌丝网络</div><span class="hybrid-plus">+</span><div class="hybrid-domain">联邦学习</div><span class="hybrid-arrow">→</span><div class="hybrid-child">像真菌一样点对点共享梯度更新</div></div>
+    <div class="hybrid-row"><div class="hybrid-domain">餐厅菜单工程</div><span class="hybrid-plus">+</span><div class="hybrid-domain">输出格式</div><span class="hybrid-arrow">→</span><div class="hybrid-child">把热门输出格式打包为可一键调用的预设</div></div>
+    <div class="hybrid-row"><div class="hybrid-domain">军事红队</div><span class="hybrid-plus">+</span><div class="hybrid-domain">模型测试</div><span class="hybrid-arrow">→</span><div class="hybrid-child">付费对抗性探测微调后模型的安全边界</div></div>
+    <div class="hybrid-row"><div class="hybrid-domain">音乐混音</div><span class="hybrid-plus">+</span><div class="hybrid-domain">适配器权重</div><span class="hybrid-arrow">→</span><div class="hybrid-child">像推子一样混合多个适配器权重</div></div>
+    <div class="hybrid-row"><div class="hybrid-domain">体育教练</div><span class="hybrid-plus">+</span><div class="hybrid-domain">输出复盘</div><span class="hybrid-arrow">→</span><div class="hybrid-child">像看比赛录像一样回放并批判模型输出</div></div>
+    <div class="hybrid-row"><div class="hybrid-domain">药物试验</div><span class="hybrid-plus">+</span><div class="hybrid-domain">模型更新</div><span class="hybrid-arrow">→</span><div class="hybrid-child">分阶段对照组推出新模型版本</div></div>
+    <div class="hybrid-row"><div class="hybrid-domain">高级定制</div><span class="hybrid-plus">+</span><div class="hybrid-domain">提示模板</div><span class="hybrid-arrow">→</span><div class="hybrid-child">为每位客户量身裁剪提示模板</div></div>
+    <div class="hybrid-row"><div class="hybrid-domain">城市规划</div><span class="hybrid-plus">+</span><div class="hybrid-domain">能力分区</div><span class="hybrid-arrow">→</span><div class="hybrid-child">按用例与风险等级划分模型能力区域</div></div>
+    <div class="hybrid-row"><div class="hybrid-domain">新闻事实核查</div><span class="hybrid-plus">+</span><div class="hybrid-domain">生成层</div><span class="hybrid-arrow">→</span><div class="hybrid-child">始终开启的来源验证层</div></div>
+  </div>
+</section>
+
+<section class="section" id="reverse">
+  <div class="section-header">
+    <span class="section-number">04</span>
+    <h2>Reverse Brainstorming · 从失败倒推</h2>
+  </div>
+  <p class="lead">先设想微调会怎么失败，再为每个失败设计保险栓。这种逆向视角把风险清单变成可落地的防御系统。</p>
+  <div class="reverse-grid">
+    <div class="reverse-card"><div class="failure">失败：测试数据泄漏进训练集</div><div class="arrow-down">↓</div><div class="fix">保险栓：严格时序切分与去污染</div></div>
+    <div class="reverse-card"><div class="failure">失败：在小数据集上过拟合</div><div class="arrow-down">↓</div><div class="fix">保险栓：正则化、早停与验证集监控</div></div>
+    <div class="reverse-card"><div class="failure">失败：遗忘通用知识</div><div class="arrow-down">↓</div><div class="fix">保险栓：回放缓冲区与弹性权重巩固</div></div>
+    <div class="reverse-card"><div class="failure">失败：生成有毒输出</div><div class="arrow-down">↓</div><div class="fix">保险栓：上线前安全 RLHF 与红队测试</div></div>
+    <div class="reverse-card"><div class="failure">失败：通过微调被越狱</div><div class="arrow-down">↓</div><div class="fix">保险栓：对抗鲁棒性训练</div></div>
+    <div class="reverse-card"><div class="failure">失败：训练数据侵犯版权</div><div class="arrow-down">↓</div><div class="fix">保险栓：来源追踪与授权语料库</div></div>
+    <div class="reverse-card"><div class="failure">失败：合成循环导致模型崩溃</div><div class="arrow-down">↓</div><div class="fix">保险栓：人机协同质量关卡</div></div>
+    <div class="reverse-card"><div class="failure">失败：评估指标被钻空子</div><div class="arrow-down">↓</div><div class="fix">保险栓：保留对抗性基准测试</div></div>
+    <div class="reverse-card"><div class="failure">失败：超参数设置错误</div><div class="arrow-down">↓</div><div class="fix">保险栓：基于群体训练的自动调参</div></div>
+    <div class="reverse-card"><div class="failure">失败：部署后无监控</div><div class="arrow-down">↓</div><div class="fix">保险栓：持续漂移与遗憾指标</div></div>
+    <div class="reverse-card"><div class="failure">失败：输出存在偏见</div><div class="arrow-down">↓</div><div class="fix">保险栓：公平感知偏好优化</div></div>
+    <div class="reverse-card"><div class="failure">失败：指令数据被提示注入污染</div><div class="arrow-down">↓</div><div class="fix">保险栓：清洗并对抗过滤训练提示</div></div>
+    <div class="reverse-card"><div class="failure">失败：延迟爆炸</div><div class="arrow-down">↓</div><div class="fix">保险栓：知识蒸馏到更小学生模型</div></div>
+    <div class="reverse-card"><div class="failure">失败：成本失控</div><div class="arrow-down">↓</div><div class="fix">保险栓：Spot 实例训练与梯度检查点</div></div>
+    <div class="reverse-card"><div class="failure">失败：不符合监管要求</div><div class="arrow-down">↓</div><div class="fix">保险栓：内置审计日志与模型卡</div></div>
+  </div>
+</section>
+
+<section class="section" id="scamper">
+  <div class="section-header">
+    <span class="section-number">05</span>
+    <h2>SCAMPER · 七维改造</h2>
+  </div>
+  <p class="lead">用 SCAMPER 的七把手术刀解剖微调流程：替代、组合、调适、修改、他用、消除、重排/逆反/缩放。每一刀都切出一个新实验。</p>
+  <div class="scamper-grid">
+    <div class="scamper-tile" data-letter="S"><h4>Substitute · 替代</h4><p>把 SGD 换成 Shampoo 或 Adam-mini 优化器；用状态空间层替换 Transformer Attention。</p></div>
+    <div class="scamper-tile" data-letter="C"><h4>Combine · 组合</h4><p>把医疗与法律适配器组合成“医疗合规”混合体；让微调 + 检索增强成为默认技术栈。</p></div>
+    <div class="scamper-tile" data-letter="A"><h4>Adapt · 调适</h4><p>把 CV 数据增强技术迁移到文本；用游戏 NPC 对话树作为训练脚手架。</p></div>
+    <div class="scamper-tile" data-letter="M"><h4>Modify · 修改</h4><p>在高风险领域把 LoRA rank 放大 10 倍；训练模型输出 1000 token 以强制长程连贯。</p></div>
+    <div class="scamper-tile" data-letter="P"><h4>Put to other use · 他用</h4><p>把客服模型调适为心理支持助手；把代码模型改造为合规审计脚本生成器。</p></div>
+    <div class="scamper-tile" data-letter="E"><h4>Eliminate · 消除</h4><p>跳过 SFT 阶段，直接从预训练进入 DPO；移除 Attention dropout 以换取速度。</p></div>
+    <div class="scamper-tile" data-letter="R"><h4>Rearrange / Reverse / Magnify · 重排·逆反·缩放</h4><p>先训输出层再训中间层；先让模型学坏再反转损失；把某垂直领域全部论文喂给模型；也可压缩到单样本法律条款适配器或 1-bit 边缘量化。</p></div>
+  </div>
+</section>
+
+<section class="synthesis" id="synthesis">
+  <div class="synthesis-inner">
+    <h2>熔炉 · 综合与洞察</h2>
+    <p class="lead" style="color: var(--muted);">五个技术板块的创意在此交汇，浮现出五条主线与一个高杠杆方向。</p>
+
+    <div class="idea-meter">
+      <div class="idea-count">102</div>
+      <div class="idea-label">本次头脑风暴<br>共生成创意点子</div>
+    </div>
+
+    <div class="insight-cards">
+      <div class="insight-card"><div class="num">洞察 01</div><p><strong>五大主题主导：</strong>参数高效方法、数据工程、垂直场景、优化目标与产品机会。</p></div>
+      <div class="insight-card"><div class="num">洞察 02</div><p><strong>适配器可组合与可混合</strong>在思维导图、What If 与跨界杂交中反复出现，是最具产品化潜力的模式。</p></div>
+      <div class="insight-card"><div class="num">洞察 03</div><p><strong>合规、反学习与溯源</strong>是被低估的商业机会，且正受到监管趋势的强力推动。</p></div>
+      <div class="insight-card"><div class="num">洞察 04</div><p><strong>合成数据 + LLM-as-judge</strong>可形成自我改进循环，但若缺少人类质量关卡，会滑向模型崩溃。</p></div>
+    </div>
+
+    <div class="direction">
+      <div class="rocket">🚀</div>
+      <div>
+        <h4>高杠杆方向</h4>
+        <p>优先探索“适配器市场 / 平台”这一产品形态：让基座模型保持通用，让垂直适配器像插件一样被创建、交易、混合与审计，把微调从工程难题转化为可组合的经济系统。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="circuit-line"></div>
+  <p>主流大模型微调技术与场景优化 · 头脑风暴创意纪要</p>
+  <p>生成时间：2026-07-21 · 方法：Mind Mapping / What If / Cross-Pollination / Reverse Brainstorming / SCAMPER</p>
+</footer>
+
+<script>
+(function(){
+  // Neural particle background
+  const canvas = document.getElementById('hero-canvas');
+  const ctx = canvas.getContext('2d');
+  let width, height;
+  let particles = [];
+  const maxDist = 130;
+  const maxConn = 3;
+
+  function resize(){
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  class Particle {
+    constructor(){
+      this.x = Math.random()*width;
+      this.y = Math.random()*height;
+      this.vx = (Math.random()-.5)*.6;
+      this.vy = (Math.random()-.5)*.6;
+      this.r = Math.random()*1.5+1;
+    }
+    update(){
+      this.x += this.vx;
+      this.y += this.vy;
+      if(this.x < 0 || this.x > width) this.vx *= -1;
+      if(this.y < 0 || this.y > height) this.vy *= -1;
+    }
+    draw(){
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.r, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(0,242,255,.5)';
+      ctx.fill();
+    }
+  }
+
+  const count = Math.min(90, Math.floor((width*height)/14000));
+  for(let i=0;i<count;i++) particles.push(new Particle());
+
+  function animate(){
+    ctx.clearRect(0,0,width,height);
+    particles.forEach((p,i)=>{
+      p.update();
+      p.draw();
+      let connections = 0;
+      for(let j=i+1;j<particles.length;j++){
+        if(connections >= maxConn) break;
+        const q = particles[j];
+        const dx = p.x-q.x, dy = p.y-q.y;
+        const d = Math.sqrt(dx*dx+dy*dy);
+        if(d < maxDist){
+          ctx.beginPath();
+          ctx.moveTo(p.x,p.y);
+          ctx.lineTo(q.x,q.y);
+          ctx.strokeStyle = `rgba(123,97,255,${0.18*(1-d/maxDist)})`;
+          ctx.lineWidth = .8;
+          ctx.stroke();
+          connections++;
+        }
+      }
+    });
+    requestAnimationFrame(animate);
+  }
+  animate();
+
+  // Mind node spotlight follow
+  document.querySelectorAll('.mind-node').forEach(node=>{
+    node.addEventListener('mousemove', e=>{
+      const rect = node.getBoundingClientRect();
+      node.style.setProperty('--mx', ((e.clientX-rect.left)/rect.width*100)+'%');
+      node.style.setProperty('--my', ((e.clientY-rect.top)/rect.height*100)+'%');
+    });
+  });
+})();
+</script>
+</body>
+</html>
