@@ -42,3 +42,8 @@ htmlcov/
 
 # 日志
 *.log
+
+results_classification
+results_classification_csv
+sentiment_model
+sentiment_model_csv

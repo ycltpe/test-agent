@@ -148,7 +148,7 @@ trainer = Trainer(
     args=training_args,
     train_dataset=tokenized_train,
     eval_dataset=tokenized_val,
-    tokenizer=tokenizer,
+    processing_class=tokenizer,
     compute_metrics=compute_metrics,
     callbacks=[EarlyStoppingCallback(early_stopping_patience=2)],  # 早停
 )
@@ -178,9 +178,9 @@ for sentence in test_sentences:
         truncation=True,
         padding=True,
         max_length=MAX_LENGTH,
-    )
+    ).to(model.device)
     outputs = model(**inputs)
-    predicted_id = int(np.argmax(outputs.logits.detach().numpy(), axis=-1)[0])
+    predicted_id = int(np.argmax(outputs.logits.detach().cpu().numpy(), axis=-1)[0])
     print(f"  输入: {sentence}")
     print(f"  预测: {id2label[predicted_id]}\n")
 
