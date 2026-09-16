@@ -17,6 +17,8 @@ dependencies = [
     "psycopg2-binary>=2.9.13",
     "langgraph-checkpoint-postgres>=3.1.2",
     "psycopg[binary]>=3.3.5",
+    "a2a-sdk[sqlite]>=1.1.2",
+    "sse-starlette>=3.4.11",
 ]
 
 [project.optional-dependencies]
@@ -30,6 +32,7 @@ dev = [
 
 [project.scripts]
 my-agent = "my_agent.main:main"
+my-agent-a2a = "my_agent.main:main_a2a"
 
 [build-system]
 requires = ["hatchling"]

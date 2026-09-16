@@ -16,7 +16,9 @@ class Settings(BaseSettings):
     debug: bool = False
     host: str = "127.0.0.1"
     port: int = 8000
+    a2a_port: int = 8001
     anthropic_api_key: str | None = None
+    anthropic_base_url: str | None = None
     default_model: str = "claude-3-5-sonnet-20241022"
 
 
