@@ -49,7 +49,7 @@ story_location: "{project-root}/_bmad-output/implementation-artifacts"
 
 development_status:
   epic-1: in-progress
-  1-1-项目骨架与信封模型: ready-for-dev
+  1-1-项目骨架与信封模型: review
   1-2-管道过滤器编排与统一错误兜底: backlog
   1-3-会话状态单写者管理: backlog
   1-4-健康检查端点: backlog
