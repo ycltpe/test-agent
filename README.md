@@ -1,44 +1,58 @@
-# my-agent
+# weiliao-agent
 
-一个基于 FastAPI 的 Agent 服务，封装了 Claude API，支持会话历史管理。
+微聊首响 Agent —— 管道-过滤器架构的首响应答服务（开发中）。
 
-## 功能
+## 架构
 
-- 通过 HTTP POST `/api/v1/chat` 与 Agent 对话
-- 可选的 `session_id` 维持多轮会话上下文
-- 通过 DELETE `/api/v1/sessions/{session_id}` 清空会话历史
-- 健康检查接口 `/api/v1/health`
+买家消息经标准化信封（Envelope）流经处理管道，每个过滤器仅消费上游信封、
+产出下游信封，过滤器之间禁止私有耦合。当前代码库已完成项目骨架与信封模型
+（Story 1.1），过滤器链、会话管理、健康检查与追踪脚手架等能力将在后续 Story 实现。
+
+## 目录结构（Structural Seed）
+
+```
+src/weiliao_agent/
+  adapters/        # Kafka consumer/producer、外部服务适配
+  filters/         # 热路径过滤器：coreference、intent_router、cache_lookup、risk_review、response_assembler
+  llm/             # LangGraph 子图、OpenAI client、prompt 管理
+  session/         # 会话状态管理（单写者，含 handoff 状态）
+  cache/           # L0 Redis 客户端、L1 cachetools 封装
+  models/          # Pydantic 模型：信封、事实卡片、意图标签（Literal）
+  workers/         # Kafka 消费者：房源事件同步、转人工指令
+  observability/   # Langfuse trace、监控指标、成本追踪
+  health/          # 健康检查端点（挂在响应组装过滤器）
+```
+
+## 信封模型
+
+`models/envelope.py` 中的 `Envelope` 是管道全链路唯一通信模型，核心字段：
+`session_id`、`house_id`、`turn`、`intent`、`timestamp`、`trace_id`；另预留
+`message`、`resolved_message`、`coref`、`media_type` 四字段（暂未消费）。
+
+任意来源的 dict 必须经 `Envelope.model_validate` 校验后方可进入管道；缺失必填
+字段（`session_id` / `house_id` / `timestamp` / `trace_id`）或类型错误一律
+fail-closed，抛出 `pydantic.ValidationError`，由调用方兜底。
 
 ## 环境变量
 
-复制 `.env.example` 为 `.env` 并填写：
+复制 `.env.example` 为 `.env` 并填写（LLM 网关使用 OpenAI 兼容接口）：
 
 ```bash
-ANTHROPIC_API_KEY=your_api_key_here
+LLM_MODEL_ID=your_model_id
+LLM_API_KEY=your_api_key_here
+LLM_BASE_URL=https://your-gateway/v1
 ```
 
 ## 开发
 
 ```bash
-# 安装依赖
+# 安装依赖（含 dev 工具）
 uv sync --all-extras
-
-# 运行服务
-uv run my-agent
 
 # 运行测试
 uv run pytest
 
-# 代码检查与格式化
-uv run ruff check .
-uv run ruff format .
+# 代码检查
+uv run ruff check src tests
 uv run mypy src
-```
-
-## API 示例
-
-```bash
-curl -X POST http://127.0.0.1:8000/api/v1/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message": "你好", "session_id": "demo"}'
 ```

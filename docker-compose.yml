@@ -1,0 +1,195 @@
+# 本地开发数据库服务合集
+# 启动全部:  docker compose up -d
+# 启动单个:  docker compose up -d postgres
+# 停止全部:  docker compose down（保留数据卷；加 -v 删除数据）
+
+name: local-data-services
+
+services:
+  # ========== 缓存 ==========
+  redis:
+    image: redis:7-alpine
+    container_name: local-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # ========== 关系型数据库 ==========
+  postgres:
+    image: postgres:16-alpine
+    container_name: local-postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: appdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d appdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.4
+    container_name: local-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: appdb
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: admin123
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    command: --mysql-native-password=ON --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot123"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # ========== 文档数据库 ==========
+  mongo:
+    image: mongo:7
+    container_name: local-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+    command: mongod --auth
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # ========== 图数据库 ==========
+  neo4j:
+    image: neo4j:5-community
+    container_name: local-neo4j
+    ports:
+      - "7474:7474"   # HTTP 控制台 http://localhost:7474
+      - "7687:7687"   # Bolt 协议
+    volumes:
+      - neo4j-data:/data
+      - neo4j-logs:/logs
+    environment:
+      NEO4J_AUTH: neo4j/admin123
+      NEO4J_server_memory_heap_max__size: 1G
+      NEO4J_server_memory_pagecache_size: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  # ========== 向量数据库 ==========
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: local-qdrant
+    ports:
+      - "6333:6333"    # REST API / 控制台 http://localhost:6333/dashboard
+      - "6334:6334"    # gRPC
+    volumes:
+      - qdrant-data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:6333/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # Milvus 依赖：etcd（元数据）
+  milvus-etcd:
+    image: quay.io/coreos/etcd:v3.5.14
+    container_name: local-milvus-etcd
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - milvus-etcd-data:/etcd
+    command: etcd -advertise-client-urls=http://milvus-etcd:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # Milvus 依赖：MinIO（对象存储）
+  milvus-minio:
+    image: minio/minio:RELEASE.2024-05-28T17-19-04Z
+    container_name: local-milvus-minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"    # S3 API
+      - "9001:9001"    # 控制台 http://localhost:9001
+    volumes:
+      - milvus-minio-data:/minio_data
+    command: minio server /minio_data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  milvus:
+    image: milvusdb/milvus:v2.4.13
+    container_name: local-milvus
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: milvus-etcd:2379
+      MINIO_ADDRESS: milvus-minio:9000
+    ports:
+      - "19530:19530"  # gRPC
+      - "9091:9091"    # HTTP/metrics
+    volumes:
+      - milvus-data:/var/lib/milvus
+    depends_on:
+      milvus-etcd:
+        condition: service_healthy
+      milvus-minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+  postgres-data:
+  mysql-data:
+  mongo-data:
+  neo4j-data:
+  neo4j-logs:
+  qdrant-data:
+  milvus-data:
+  milvus-etcd-data:
+  milvus-minio-data:

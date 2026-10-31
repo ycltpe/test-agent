@@ -1,7 +1,7 @@
 [project]
-name = "my-agent"
+name = "weiliao-agent"
 version = "0.1.0"
-description = "A FastAPI-based agent service."
+description = "Weiliao first-response agent service (pipeline-filter architecture)."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
@@ -9,12 +9,14 @@ dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
     "pydantic>=2.9.0",
-    "pydantic-settings>=2.6.0",
-    "anthropic>=0.42.0",
-    "python-dotenv>=1.0.0",
+    "langgraph==1.2.16",
+    "langchain-openai>=1.6.2",
+    "redis==8.1.0",
+    "langfuse==5.0.4",
+    "cachetools==7.2.4",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",
@@ -23,15 +25,12 @@ dev = [
     "mypy>=1.13.0",
 ]
 
-[project.scripts]
-my-agent = "my_agent.main:main"
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/my_agent"]
+packages = ["src/weiliao_agent"]
 
 [tool.ruff]
 line-length = 100
