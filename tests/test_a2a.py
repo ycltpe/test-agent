@@ -67,6 +67,7 @@ def test_agent_card(a2a_client: TestClient) -> None:
     resp = a2a_client.get("/.well-known/agent-card.json")
     assert resp.status_code == 200
     card = resp.json()
+    print(f"\ncard:{card}")
     assert card["name"] == "my-agent"
     assert card["supportedInterfaces"][0]["url"].endswith("/a2a")
     assert card["skills"], "AgentCard 应至少声明一个 skill"
